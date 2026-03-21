@@ -355,7 +355,7 @@ Alpine.data<Partial<LoginState>, any>('oauth', () => {
         handleSuccessfulLogin() {
             this.state!.authRecord = pbAuthStore.selected?.record || null;
             this.state!.validAccountsForReq = getValidAccountsForReq();
-            this.handleSuccessfulConsent();  // ← всегда сразу approve
+            this.handleSuccessfulConsent();   
         },
 
         //
