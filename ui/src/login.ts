@@ -152,10 +152,14 @@ Alpine.data<Partial<LoginState>, any>('oauth', () => {
                 return;
 
             } else if (this.params.prompt === "consent") {
-                // Для первого домена — сразу аппрувим, без экрана согласия
                 if (this.state.validAccountsForReq.length === 1) {
-                    this.state!.authRecord = pbAuthStore.selectByRecord(this.state.validAccountsForReq[0])?.record || null;
-                    this.handleSuccessfulConsent(); // ← сразу редирект
+                    // 🔥 Важно: сначала выбираем запись в хранилище!
+                    const found = pbAuthStore.selectByRecord(this.state.validAccountsForReq[0]);
+                    if (found) {
+                        pbAuthStore.select(pbAuthStore.findIndex(this.state.validAccountsForReq[0]));
+                    }
+                    this.state!.authRecord = found?.record || null;
+                    this.handleSuccessfulConsent();
                 } else {
                     this.page = "account-selection";
                 }
@@ -361,7 +365,17 @@ Alpine.data<Partial<LoginState>, any>('oauth', () => {
         //
 
         handleSuccessfulConsent() {
-            const { token, iat } = pbAuthStore.selected!;
+            console.log("🚀 handleSuccessfulConsent called", {
+                selected: pbAuthStore.selected,
+                redirect_uri: this.params.redirect_uri
+            });
+            
+            if (!pbAuthStore.selected) {
+                console.error("❌ pbAuthStore.selected is undefined!");
+                return;
+            }
+            
+            const { token, iat } = pbAuthStore.selected;
             postRedirect(this.params.redirect_uri, { pb_token: token, pb_token_iat: iat });
         },
 
