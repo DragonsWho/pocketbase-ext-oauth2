@@ -66,6 +66,24 @@ func api_OAuth2Authorize(e *core.RequestEvent) error {
 		}
 	}
 
+	// Seamless SSO fallback: the main site mirrors its auth token into a
+	// "pb_auth" cookie scoped to the /oauth2 path. When the authorize request
+	// arrives as a plain top-level navigation (no pb_token form field), adopt
+	// that cookie so the whole hop completes through invisible redirects — the
+	// interactive login page below is only reached when neither is present.
+	if u == nil {
+		if cookie, cerr := e.Request.Cookie("pb_auth"); cerr == nil && len(cookie.Value) > 0 {
+			if u, err = e.App.FindAuthRecordByToken(cookie.Value); err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					return e.InternalServerError("Internal Error", err)
+				}
+			}
+			if u != nil {
+				issuedAt = time.Now().In(time.UTC)
+			}
+		}
+	}
+
 	if tokenIat := ar.GetRequestForm().Get("pb_token_iat"); len(tokenIat) > 0 {
 		if iatInt, err := strconv.ParseInt(tokenIat, 10, 64); err == nil {
 			issuedAt = time.Unix(iatInt, 0).In(time.UTC)

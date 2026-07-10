@@ -10,8 +10,10 @@
         /* Dark theme matching the main cyoa.cafe app (MUI dark palette), so
            this page reads as another page of the same site, not a foreign
            white PocketBase screen. The stylesheet is variable-driven, so
-           overriding the :root palette is enough. */
-        :root {
+           overriding the :root palette is enough. Doubled :root because vite
+           inlines the light-theme bundle AFTER this block — extra specificity
+           keeps these values winning. */
+        :root:root {
             --txtPrimaryColor: #e8eaed;
             --txtHintColor: #9aa0a6;
             --txtDisabledColor: #5f6368;
