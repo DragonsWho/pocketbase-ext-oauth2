@@ -222,6 +222,11 @@ func (d *DefaultUserInfoClaimStrategy) GetUserInfoClaims(e *core.RequestEvent, s
 		}
 		if d.hasType(e, "preferred_username", core.FieldTypeText) {
 			ret.PreferredUsername = e.Auth.GetString("preferred_username")
+		} else if d.hasType(e, "username", core.FieldTypeText) {
+			// PocketBase user collections commonly keep the login/display
+			// handle in a plain "username" text field; surface it through the
+			// standard claim so OIDC clients can suggest a real username.
+			ret.PreferredUsername = e.Auth.GetString("username")
 		}
 		if d.hasType(e, "profile", core.FieldTypeText, core.FieldTypeURL) {
 			ret.Profile = e.Auth.GetString("profile")
