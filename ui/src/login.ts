@@ -7,6 +7,20 @@ import "./login.style.min.css";
 
 //
 
+// Returns true when the JWT's `exp` claim is still in the future. Used to
+// avoid adopting an already-expired main-site session (which the server would
+// reject, bouncing us back here in a loop).
+const jwtNotExpired = (token: string): boolean => {
+    try {
+        const payload = JSON.parse(base64UrlDecode(token.split(".")[1] || ""));
+        return typeof payload?.exp === "number" && payload.exp > Math.floor(Date.now() / 1000);
+    } catch {
+        return false;
+    }
+};
+
+//
+
 type LoginState = {
     page: "account-selection" | "login-password" | "login-otp" | "consent";
     state: {
@@ -133,6 +147,34 @@ Alpine.data<Partial<LoginState>, any>('oauth', () => {
         //
 
         async init() {
+
+            // Seamless SSO: this login page runs on the same origin as the main
+            // cyoa.cafe app, so it can see the session the user already has there
+            // (PocketBase SDK default store, key "pocketbase_auth"). If our own
+            // OAuth2 cache is empty, adopt that session so the user is never asked
+            // to sign in a second time — the flow then auto-completes via the
+            // consent path below. The one-shot guard prevents a redirect loop if
+            // the server ends up rejecting the adopted token.
+            const SSO_GUARD = "__oauth2_sso_adopted__";
+            if (sessionStorage.getItem(SSO_GUARD)) {
+                // Came back here after adopting once → the token didn't stick.
+                // Drop it and fall through to the normal login form.
+                sessionStorage.removeItem(SSO_GUARD);
+                try { pbAuthStore.clear(); } catch { /* noop */ }
+            } else if (pbAuthStore.count === 0) {
+                try {
+                    const raw = window.localStorage.getItem("pocketbase_auth");
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        const token: string | undefined = parsed?.token;
+                        const record = parsed?.record ?? parsed?.model;
+                        if (token && record && jwtNotExpired(token)) {
+                            pbAuthStore.save(token, record);
+                            sessionStorage.setItem(SSO_GUARD, "1");
+                        }
+                    }
+                } catch { /* ignore a malformed main-site store */ }
+            }
 
             this.state!.validAccountsForReq = getValidAccountsForReq();
 
