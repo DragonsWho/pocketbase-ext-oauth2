@@ -90,6 +90,10 @@ export default class MultiAuthStore extends BaseAuthStore {
      */
     clear() {
         this._storageRemove(this.storageKey);
+        // Reset the in-memory list too, otherwise a save() after clear()
+        // writes the stale pre-clear items right back into storage.
+        this.items = [];
+        this.index = -1;
 
         super.clear();
     }

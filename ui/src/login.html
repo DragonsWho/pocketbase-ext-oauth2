@@ -4,9 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ui2</title>
+    <title>cyoa.cafe</title>
     <style>
         [x-cloak] { display: none !important; }
+        /* Dark theme matching the main cyoa.cafe app (MUI dark palette), so
+           this page reads as another page of the same site, not a foreign
+           white PocketBase screen. The stylesheet is variable-driven, so
+           overriding the :root palette is enough. */
+        :root {
+            --txtPrimaryColor: #e8eaed;
+            --txtHintColor: #9aa0a6;
+            --txtDisabledColor: #5f6368;
+            --primaryColor: #e8eaed;
+            --bodyColor: #121212;
+            --baseColor: #1e1e1e;
+            --baseAlt1Color: #2a2a2e;
+            --baseAlt2Color: #35353a;
+            --baseAlt3Color: #414147;
+            --baseAlt4Color: #5c5c64;
+            --overlayColor: rgba(0, 0, 0, .5);
+            --tooltipColor: rgba(0, 0, 0, .85);
+            --shadowColor: rgba(0, 0, 0, .4);
+        }
+        html, body { background: var(--bodyColor); }
     </style>
   </head>
   <body>
@@ -18,8 +38,7 @@
                         <div class="wrapper wrapper-sm m-b-xl panel-wrapper">
                             <div class="block txt-center m-b-lg" x-cloak>
                                 <figure class="logo">
-                                    <img src="/_/images/logo.svg" alt="PocketBase logo" width="40" height="40" />
-                                    <span class="txt">Pocket<strong>Base</strong></span>
+                                    <span class="txt">CYOA <strong>Café</strong></span>
                                 </figure>
                             </div>
                             <div class="clearfix" />

@@ -149,34 +149,49 @@ Alpine.data<Partial<LoginState>, any>('oauth', () => {
         async init() {
 
             // Seamless SSO: this login page runs on the same origin as the main
-            // cyoa.cafe app, so it can see the session the user already has there
-            // (PocketBase SDK default store, key "pocketbase_auth"). If our own
-            // OAuth2 cache is empty, adopt that session so the user is never asked
-            // to sign in a second time — the flow then auto-completes via the
-            // consent path below. The one-shot guard prevents a redirect loop if
-            // the server ends up rejecting the adopted token.
+            // cyoa.cafe app, and the main app's session (localStorage key
+            // "pocketbase_auth") is the single source of truth for who the user
+            // is. Mirror it into our own store on EVERY visit — accounts left
+            // over from older visits otherwise accumulate in __pb_oauth2_cache__
+            // and surface an account-picker click instead of a silent hand-off.
+            // The one-shot guard prevents a redirect loop if the server ends up
+            // rejecting the adopted token.
             const SSO_GUARD = "__oauth2_sso_adopted__";
+            let adoptedMainSession = false;
             if (sessionStorage.getItem(SSO_GUARD)) {
-                // Came back here after adopting once → the token didn't stick.
+                // Came back here right after adopting → the token didn't stick.
                 // Drop it and fall through to the normal login form.
                 sessionStorage.removeItem(SSO_GUARD);
                 try { pbAuthStore.clear(); } catch { /* noop */ }
-            } else if (pbAuthStore.count === 0) {
+            } else {
                 try {
                     const raw = window.localStorage.getItem("pocketbase_auth");
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        const token: string | undefined = parsed?.token;
-                        const record = parsed?.record ?? parsed?.model;
-                        if (token && record && jwtNotExpired(token)) {
-                            pbAuthStore.save(token, record);
-                            sessionStorage.setItem(SSO_GUARD, "1");
-                        }
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    const token: string | undefined = parsed?.token;
+                    const record = parsed?.record ?? parsed?.model;
+                    if (token && record && jwtNotExpired(token)) {
+                        try { pbAuthStore.clear(); } catch { /* noop */ }
+                        // save() appends and selects the record, so
+                        // pbAuthStore.selected is guaranteed after this.
+                        pbAuthStore.save(token, record);
+                        sessionStorage.setItem(SSO_GUARD, "1");
+                        adoptedMainSession = true;
                     }
                 } catch { /* ignore a malformed main-site store */ }
             }
 
             this.state!.validAccountsForReq = getValidAccountsForReq();
+
+            // Freshly mirrored main-site session → finish the hop silently.
+            // No consent click: the forum is meant to feel like another page
+            // of the same site. If the server rejects the token we bounce back
+            // here once, the guard trips, and the normal form takes over.
+            if (adoptedMainSession && this.params.prompt !== "login" && pbAuthStore.selected) {
+                this.state!.authRecord = pbAuthStore.selected.record ?? null;
+                const { token, iat } = pbAuthStore.selected;
+                postRedirect(this.params.redirect_uri, { pb_token: token, pb_token_iat: iat });
+                return;
+            }
 
             if (this.params.prompt === "none") {
                 if (this.state.validAccountsForReq.length === 1) {
